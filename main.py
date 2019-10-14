@@ -72,14 +72,12 @@ def frequency_of_words_in_feature(words_to_look_for, review_dataset_to_search):
         .str.lower() \
         .str.split()
 
-    word_featured_frequency_in_review = {}  # If word is in a review, +1 the frequency
+    word_featured_frequency_in_review = {word: 0 for word in words_to_look_for}  # If word is in a review, +1 the frequency. Initialise the dictionary with 0 for every word
     for review in sanitised_review_dataset_to_search:
         for word_to_look_for in words_to_look_for:
             if word_to_look_for in review:
                 if word_to_look_for in word_featured_frequency_in_review:
                     word_featured_frequency_in_review[word_to_look_for] += 1
-                else:
-                    word_featured_frequency_in_review[word_to_look_for] = 1
 
     return word_featured_frequency_in_review
 
@@ -91,5 +89,6 @@ def main():
 
     frequency_of_words_in_positive_reviews = frequency_of_words_in_feature(reviews_training_data_words_list, reviews_training_data_list[sentiment_training_data_list == "positive"])
     frequency_of_words_in_negative_reviews = frequency_of_words_in_feature(reviews_training_data_words_list, reviews_training_data_list[sentiment_training_data_list == "negative"])
+
 
 main()
