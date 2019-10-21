@@ -113,16 +113,26 @@ def predict_sentiment_label(review_text, positive_prior, negative_prior, likelih
         .lower() \
         .split()
 
-    positive_likelihood_sum = 0
-    negative_likelihood_sum = 0
+    positive_likelihood_outcomes = [0.003, 0.0002]
+    negative_likelihood_outcomes = []
     for word in review_text_as_words:
         if word in likelihoods_of_word_dictionary:
-            positive_likelihood_sum += likelihoods_of_word_dictionary[word][0] * positive_prior / (
-                    likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1])
-            negative_likelihood_sum += likelihoods_of_word_dictionary[word][1] * negative_prior / (
-                    likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1])
+            positive_likelihood_outcomes.append(likelihoods_of_word_dictionary[word][0] * positive_prior / (
+                    likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1]))
+            negative_likelihood_outcomes.append(likelihoods_of_word_dictionary[word][1] * negative_prior / (
+                    likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1]))
 
-    if positive_likelihood_sum > negative_likelihood_sum:
+    # TODO: change to inline
+    positive_score = 0
+    for pos_score in positive_likelihood_outcomes:
+        positive_score += np.math.log(pos_score)
+
+    negative_score = 0
+    for neg_score in negative_likelihood_outcomes:
+        negative_score += np.math.log(neg_score)
+
+    # TODO: ratios?
+    if positive_score > negative_score:
         return "positive"
     else:
         return "negative"
@@ -136,6 +146,19 @@ def main():
     print("Starting to fetch data from file")
     reviews_training_data_list, sentiment_training_data_list, reviews_testing_data_list, sentiment_testing_data_list = get_training_and_evaluation_data()
     print("Finished fetching data from file")
+
+   # Why oh why it's broken
+    print(sentiment_testing_data_list)
+    list = sentiment_testing_data_list.tolist()
+    print(type(sentiment_testing_data_list))
+    print(sentiment_testing_data_list.get(0))
+    print(sentiment_testing_data_list.get(1))
+    print(sentiment_testing_data_list.get(2))
+    print(sentiment_testing_data_list.get(3))
+    print(list[0])
+    print(list[1])
+    print(list[2])
+    print(list[3])
 
     print("Starting to convert training data into individual words")
     reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_data_list, 4, 100)
@@ -162,17 +185,28 @@ def main():
 
     positive_sentiment_count = 0
     negative_sentiment_count = 0
+    correct_count = 0
+    i = 0
+    sentiment_testing_data_as_a_list_because_get_doesnt_work_when_series = sentiment_testing_data_list.tolist()
+
     for review in reviews_testing_data_list:
 
-        sentitment = predict_sentiment_label(review, positive_priors, negative_priors, likelihood_laplace_dictionary)
+        predicted_sentiment = predict_sentiment_label(review, positive_priors, negative_priors, likelihood_laplace_dictionary)
 
-        if sentitment == "positive":
+        sentiment = sentiment_testing_data_as_a_list_because_get_doesnt_work_when_series[i]
+        i += 1
+
+        print(sentiment, predicted_sentiment)
+        if sentiment == predicted_sentiment:
+            correct_count += 1
+        if predicted_sentiment == "positive":
             positive_sentiment_count += 1
         else:
             negative_sentiment_count += 1
 
     print("positive reviews: ", positive_sentiment_count)
     print("negative reviews: ", negative_sentiment_count)
+    print("correct_count :", correct_count)
 
 
 main()
