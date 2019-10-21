@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 
 def get_training_and_evaluation_data():
@@ -68,27 +69,71 @@ def frequency_of_words_in_feature(words_to_look_for, review_dataset_to_search):
     :return:
     """
     sanitised_review_dataset_to_search = review_dataset_to_search.str \
-        .replace("[^a-zA-Z ]", "") \
+        .replace("[^a-zA-Z0-9 ]", "") \
         .str.lower() \
         .str.split()
 
     word_featured_frequency_in_review = {word: 0 for word in words_to_look_for}  # If word is in a review, +1 the frequency. Initialise the dictionary with 0 for every word
+    # for review in sanitised_review_dataset_to_search:
+    #     for word_to_look_for in words_to_look_for:
+    #         if word_to_look_for in review:
+    #             word_featured_frequency_in_review[word_to_look_for] += 1
+
     for review in sanitised_review_dataset_to_search:
-        for word_to_look_for in words_to_look_for:
-            if word_to_look_for in review:
-                if word_to_look_for in word_featured_frequency_in_review:
-                    word_featured_frequency_in_review[word_to_look_for] += 1
+        unique_review_words = set(review)
+        for unique_review_word in unique_review_words:
+            if unique_review_word in words_to_look_for:
+                word_featured_frequency_in_review[unique_review_word] += 1
 
     return word_featured_frequency_in_review
 
 
+def calculate_likelihood_using_laplace(frequency_of_positive_words, frequency_of_negative_words, total_number_of_positive_reviews, total_number_of_negative_reviews):
+    # Each word extracted in teast 2 -> binary heature of review, indicating that it's either present or abset
+    # posterior 𝑃[𝜔𝑖 | x] is equal to likelihood 𝑃 [𝑥 | 𝜔i] and prior P[wi] divided by evidence P[x]
+
+    frequencies_dictionary = {}
+    for word in frequency_of_positive_words:
+        likelihood_positive_laplace = np.divide(frequency_of_positive_words.get(word) + 1, total_number_of_positive_reviews + len(frequency_of_positive_words))
+        likelihood_negative_laplace = np.divide(frequency_of_negative_words.get(word) + 1, total_number_of_negative_reviews + len(frequency_of_negative_words))
+
+        pos_neg_fraction = [likelihood_positive_laplace, likelihood_negative_laplace]
+
+        frequencies_dictionary[word] = pos_neg_fraction
+
+    positive_priors = np.divide(total_number_of_positive_reviews, total_number_of_positive_reviews + total_number_of_negative_reviews)
+    negative_priors = np.divide(total_number_of_negative_reviews, total_number_of_negative_reviews + total_number_of_positive_reviews)
+
+    return frequencies_dictionary, positive_priors, negative_priors
+
+
 def main():
+    print("Starting to fetch data from file")
     reviews_training_data_list, sentiment_training_data_list, reviews_testing_data_list, sentiment_testing_data_list = get_training_and_evaluation_data()
+    print("Finished fetching data from file")
 
-    reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_data_list, 5, 1000)
+    print("Starting to convert training data into individual words")
+    reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_data_list, 12, 12)
+    print("reviews_training_data_words_list", reviews_training_data_words_list)
+    print("Finished converting training data into individual words")
 
+    print("Starting to get frequency of words in positive/negative reviews")
     frequency_of_words_in_positive_reviews = frequency_of_words_in_feature(reviews_training_data_words_list, reviews_training_data_list[sentiment_training_data_list == "positive"])
     frequency_of_words_in_negative_reviews = frequency_of_words_in_feature(reviews_training_data_words_list, reviews_training_data_list[sentiment_training_data_list == "negative"])
+    print("Finished getting the frequency of words in positive/negative reviews")
+
+    total_positive_reviews = reviews_training_data_list[sentiment_training_data_list == "positive"].size
+    total_negative_reviews = reviews_training_data_list[sentiment_training_data_list == "negative"].size
+
+    print("Starting to get likelihood using laplace")
+    likelihood_laplace_dictionary, positive_priors, negative_priors = calculate_likelihood_using_laplace(frequency_of_words_in_positive_reviews,
+                                                                                                         frequency_of_words_in_negative_reviews,
+                                                                                                         total_positive_reviews,
+                                                                                                         total_negative_reviews)
+    print("likelihood_laplace_dictionary", likelihood_laplace_dictionary)
+    print("positive_priors", positive_priors)
+    print("negative_priors", negative_priors)
+    print("Finished getting the likelihood using laplace")
 
 
 main()
