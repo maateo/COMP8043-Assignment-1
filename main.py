@@ -113,7 +113,7 @@ def predict_sentiment_label(review_text, positive_prior, negative_prior, likelih
         .lower() \
         .split()
 
-    positive_likelihood_outcomes = [0.003, 0.0002]
+    positive_likelihood_outcomes = []
     negative_likelihood_outcomes = []
     for word in review_text_as_words:
         if word in likelihoods_of_word_dictionary:
