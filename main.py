@@ -36,7 +36,7 @@ def prepare_and_convert_training_data_to_word_list(reviews_training_data_list, m
     #           2 [this, ludicrous, film, offers, the, standard, ...
     #       ]
     reviews_in_words = reviews_training_data_list.str \
-        .replace("[^a-zA-Z ]", "") \
+        .replace("[^a-zA-Z ]", " ") \
         .str.lower() \
         .str.split()
 
@@ -69,7 +69,7 @@ def frequency_of_words_in_feature(words_to_look_for, review_dataset_to_search):
     :return:
     """
     sanitised_review_dataset_to_search = review_dataset_to_search.str \
-        .replace("[^a-zA-Z0-9 ]", "") \
+        .replace("[^a-zA-Z0-9 ]", " ") \
         .str.lower() \
         .str.split()
 
@@ -107,13 +107,38 @@ def calculate_likelihood_using_laplace(frequency_of_positive_words, frequency_of
     return frequencies_dictionary, positive_priors, negative_priors
 
 
+def predict_sentiment_label(review_text, positive_prior, negative_prior, likelihoods_of_word_dictionary):
+    review_text_as_words = review_text \
+        .replace("[^a-zA-Z0-9 ]", " ") \
+        .lower() \
+        .split()
+
+    positive_likelihood_sum = 0
+    negative_likelihood_sum = 0
+    for word in review_text_as_words:
+        if word in likelihoods_of_word_dictionary:
+            positive_likelihood_sum += likelihoods_of_word_dictionary[word][0] * positive_prior / (
+                    likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1])
+            negative_likelihood_sum += likelihoods_of_word_dictionary[word][1] * negative_prior / (
+                    likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1])
+
+    if positive_likelihood_sum > negative_likelihood_sum:
+        return "positive"
+    else:
+        return "negative"
+
+    # good, happy, great, amazing
+    # 0.01, 0.02, 0.5, 0.004 => 0.5....
+    # 0.00001,0.00001,0.00001,0.00001 => 0.0004
+
+
 def main():
     print("Starting to fetch data from file")
     reviews_training_data_list, sentiment_training_data_list, reviews_testing_data_list, sentiment_testing_data_list = get_training_and_evaluation_data()
     print("Finished fetching data from file")
 
     print("Starting to convert training data into individual words")
-    reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_data_list, 12, 12)
+    reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_data_list, 4, 100)
     print("reviews_training_data_words_list", reviews_training_data_words_list)
     print("Finished converting training data into individual words")
 
@@ -134,6 +159,20 @@ def main():
     print("positive_priors", positive_priors)
     print("negative_priors", negative_priors)
     print("Finished getting the likelihood using laplace")
+
+    positive_sentiment_count = 0
+    negative_sentiment_count = 0
+    for review in reviews_testing_data_list:
+
+        sentitment = predict_sentiment_label(review, positive_priors, negative_priors, likelihood_laplace_dictionary)
+
+        if sentitment == "positive":
+            positive_sentiment_count += 1
+        else:
+            negative_sentiment_count += 1
+
+    print("positive reviews: ", positive_sentiment_count)
+    print("negative reviews: ", negative_sentiment_count)
 
 
 main()
