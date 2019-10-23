@@ -1,5 +1,6 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+from sklearn import model_selection
 
 
 def get_training_and_evaluation_data():
@@ -89,7 +90,7 @@ def frequency_of_words_in_feature(words_to_look_for, review_dataset_to_search):
 
 
 def calculate_likelihood_using_laplace(frequency_of_positive_words, frequency_of_negative_words, total_number_of_positive_reviews, total_number_of_negative_reviews):
-    # Each word extracted in teast 2 -> binary heature of review, indicating that it's either present or abset
+    # Each word extracted in test 2 -> binary feature of review, indicating that it's either present or absent
     # posterior 𝑃[𝜔𝑖 | x] is equal to likelihood 𝑃 [𝑥 | 𝜔i] and prior P[wi] divided by evidence P[x]
 
     frequencies_dictionary = {}
@@ -147,7 +148,9 @@ def main():
     reviews_training_data_list, sentiment_training_data_list, reviews_testing_data_list, sentiment_testing_data_list = get_training_and_evaluation_data()
     print("Finished fetching data from file")
 
-   # Why oh why it's broken
+    print(len(reviews_training_data_list))
+    print(len(sentiment_training_data_list))
+    # Why oh why is it broken???
     print(sentiment_testing_data_list)
     list = sentiment_testing_data_list.tolist()
     print(type(sentiment_testing_data_list))
@@ -161,7 +164,7 @@ def main():
     print(list[3])
 
     print("Starting to convert training data into individual words")
-    reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_data_list, 4, 100)
+    reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_data_list, 7, 1000)
     print("reviews_training_data_words_list", reviews_training_data_words_list)
     print("Finished converting training data into individual words")
 
@@ -186,15 +189,15 @@ def main():
     positive_sentiment_count = 0
     negative_sentiment_count = 0
     correct_count = 0
-    i = 0
+    sentiment_position_counter = 0
     sentiment_testing_data_as_a_list_because_get_doesnt_work_when_series = sentiment_testing_data_list.tolist()
 
     for review in reviews_testing_data_list:
 
         predicted_sentiment = predict_sentiment_label(review, positive_priors, negative_priors, likelihood_laplace_dictionary)
 
-        sentiment = sentiment_testing_data_as_a_list_because_get_doesnt_work_when_series[i]
-        i += 1
+        sentiment = sentiment_testing_data_as_a_list_because_get_doesnt_work_when_series[sentiment_position_counter]
+        sentiment_position_counter += 1
 
         print(sentiment, predicted_sentiment)
         if sentiment == predicted_sentiment:
@@ -206,7 +209,97 @@ def main():
 
     print("positive reviews: ", positive_sentiment_count)
     print("negative reviews: ", negative_sentiment_count)
-    print("correct_count :", correct_count)
+    print("correct_count: ", correct_count)
+
+    for k in range(7, 8):
+        # iris = datasets.load_iris()
+        # print(iris)
+        # print(type(iris))
+        allResults = []
+        kf = model_selection.KFold(n_splits=5, shuffle=False)
+        for train_index, test_index in kf.split(reviews_training_data_list, sentiment_training_data_list):
+            print("train_index", train_index)
+            print("test_index", test_index)
+
+            # training = reviews_training_data_list.iloc[train_index]
+            # train_index_as_sanitised_words = prepare_and_convert_training_data_to_word_list(reviews_training_data_list.iloc[train_index], k, 1000)
+            #
+            # frequency_of_words_in_positive_reviews = frequency_of_words_in_feature(reviews_training_data_words_list,
+            #                                                                        reviews_training_data_list[sentiment_training_data_list == "positive"])
+            # frequency_of_words_in_negative_reviews = frequency_of_words_in_feature(reviews_training_data_words_list,
+            #                                                                        reviews_training_data_list[sentiment_training_data_list == "negative"])
+            #
+            # print("WE MADE IT HERE", train_index_as_sanitised_words)
+            #
+            # frequency_of_words_in_positive_reviews = frequency_of_words_in_feature(reviews_training_data_words_list,
+            #                                                                        reviews_training_data_list[sentiment_training_data_list == "positive"])
+            # frequency_of_words_in_negative_reviews = frequency_of_words_in_feature(reviews_training_data_words_list,
+            #                                                                        reviews_training_data_list[sentiment_training_data_list == "negative"])
+            #
+            # allResults.append(metrics.accuracy_score(results, iris.target[test_index]))
+
+            print("Starting to convert training data into individual words")
+            reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_data_list.iloc[train_index], k, 1000)
+            print("reviews_training_data_words_list", reviews_training_data_words_list)
+            print("Finished converting training data into individual words")
+
+            print("Starting to get frequency of words in positive/negative reviews")
+            frequency_of_words_in_positive_reviews = frequency_of_words_in_feature(
+                reviews_training_data_words_list,
+                reviews_training_data_list.iloc[train_index][sentiment_training_data_list.iloc[train_index] == "positive"])
+            frequency_of_words_in_negative_reviews = frequency_of_words_in_feature(
+                reviews_training_data_words_list,
+                reviews_training_data_list.iloc[train_index][sentiment_training_data_list.iloc[train_index] == "negative"])
+            print("Finished getting the frequency of words in positive/negative reviews")
+
+            total_positive_reviews = reviews_training_data_list.iloc[train_index][sentiment_training_data_list.iloc[train_index] == "positive"].size
+            total_negative_reviews = reviews_training_data_list.iloc[train_index][sentiment_training_data_list.iloc[train_index] == "negative"].size
+
+            print("Starting to get likelihood using laplace")
+            likelihood_laplace_dictionary, positive_priors, negative_priors = calculate_likelihood_using_laplace(frequency_of_words_in_positive_reviews,
+                                                                                                                 frequency_of_words_in_negative_reviews,
+                                                                                                                 total_positive_reviews,
+                                                                                                                 total_negative_reviews)
+            print("likelihood_laplace_dictionary", likelihood_laplace_dictionary)
+            print("positive_priors", positive_priors)
+            print("negative_priors", negative_priors)
+            print("Finished getting the likelihood using laplace")
+
+            positive_sentiment_count = 0
+            negative_sentiment_count = 0
+            correct_count = 0
+            sentiment_position_counter = 0
+            sentiment_testing_data_as_a_list_because_get_doesnt_work_when_series = sentiment_testing_data_list.tolist()
+
+            for review in reviews_testing_data_list:
+
+                predicted_sentiment = predict_sentiment_label(review, positive_priors, negative_priors, likelihood_laplace_dictionary)
+
+                sentiment = sentiment_testing_data_as_a_list_because_get_doesnt_work_when_series[sentiment_position_counter]
+                sentiment_position_counter += 1
+
+                print(sentiment, predicted_sentiment)
+                if sentiment == predicted_sentiment:
+                    correct_count += 1
+                if predicted_sentiment == "positive":
+                    positive_sentiment_count += 1
+                else:
+                    negative_sentiment_count += 1
+
+            print("positive reviews: ", positive_sentiment_count)
+            print("negative reviews: ", negative_sentiment_count)
+            print("correct_count: ", correct_count)
+
+
+
+        print("Accuracy is ", np.mean(allResults))
+
+        # Print results
+        print("k: ", k)
+        # print("True positives: ", np.sum(true_positives))
+        # print("True negatives: ", np.sum(true_negatives))
+        # print("False positives: ", np.sum(false_positives))
+        # print("False positives: ", np.sum(false_negatives))
 
 
 main()
