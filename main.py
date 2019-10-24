@@ -137,6 +137,66 @@ def predict_sentiment_label(review_text, positive_prior, negative_prior, likelih
         return "negative"
 
 
+def get_optimal_word_length_using_k_folds(reviews_training_data_list, sentiment_training_data_list, start_word_length_inclusive, end_word_length_inclusive):
+    average_run_results = []  # keeps average result for each min word length run
+    for current_min_word_length in range(start_word_length_inclusive, end_word_length_inclusive + 1):  # +1 to have it inclusive
+        this_run_results = []
+
+        kf = model_selection.KFold(n_splits=5, shuffle=False)
+        for train_index, test_index in kf.split(reviews_training_data_list, sentiment_training_data_list):
+            reviews_training_train_fold_data = reviews_training_data_list.iloc[train_index]
+            reviews_training_test_fold_data = reviews_training_data_list.iloc[test_index]
+            sentiment_training_train_fold_data = sentiment_training_data_list.iloc[train_index]
+            sentiment_training_test_fold_data = sentiment_training_data_list.iloc[test_index]
+
+            print("Starting to convert training data into individual words")
+            reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_train_fold_data, current_min_word_length, 100)
+            print("reviews_training_data_words_list", reviews_training_data_words_list)
+            print("Finished converting training data into individual words")
+
+            print("Starting to get frequency of words in positive/negative reviews")
+            frequency_of_words_in_positive_reviews = frequency_of_words_in_feature(reviews_training_data_words_list,
+                                                                                   reviews_training_train_fold_data[sentiment_training_train_fold_data == "positive"])
+            frequency_of_words_in_negative_reviews = frequency_of_words_in_feature(reviews_training_data_words_list,
+                                                                                   reviews_training_train_fold_data[sentiment_training_train_fold_data == "negative"])
+            print("Finished getting the frequency of words in positive/negative reviews")
+
+            total_positive_reviews = reviews_training_train_fold_data[sentiment_training_train_fold_data == "positive"].size
+            total_negative_reviews = reviews_training_train_fold_data[sentiment_training_train_fold_data == "negative"].size
+
+            print("Starting to get likelihood using laplace")
+            likelihood_laplace_dictionary, positive_priors, negative_priors = calculate_likelihood_using_laplace(frequency_of_words_in_positive_reviews,
+                                                                                                                 frequency_of_words_in_negative_reviews,
+                                                                                                                 total_positive_reviews,
+                                                                                                                 total_negative_reviews)
+            print("likelihood_laplace_dictionary", likelihood_laplace_dictionary)
+            print("positive_priors", positive_priors)
+            print("negative_priors", negative_priors)
+            print("Finished getting the likelihood using laplace")
+
+            predicted_sentiment_list = []
+            for review in reviews_training_test_fold_data:
+                predicted_sentiment = predict_sentiment_label(review, positive_priors, negative_priors, likelihood_laplace_dictionary)
+                predicted_sentiment_list.append(predicted_sentiment)
+
+            true_negative, false_positive, false_negative, true_positive = confusion_matrix(sentiment_training_test_fold_data, predicted_sentiment_list).ravel()
+
+            print("true negative", true_negative)
+            print("false positive", false_positive)
+            print("false negative", false_negative)
+            print("true positive", true_positive)
+
+            this_run_results.append(np.divide(np.sum([true_positive, true_negative]), len(sentiment_training_test_fold_data)))  # Append the percentage at the end of each fold
+
+        average_score_for_min_length = np.mean(this_run_results)
+        print("For word length", current_min_word_length, "the average accuracy was", average_score_for_min_length, "%")
+        average_run_results.append(average_score_for_min_length)  # get average of each run
+
+    best_min_word_length = average_run_results.index(max(average_run_results)) + 1  # Getting best word length, +1 to account for list starting at 0
+    print("Best average was achieved with minimum word length: ", best_min_word_length)
+    return best_min_word_length
+
+
 def main():
     print("Starting to fetch data from file")
     reviews_training_data_list, sentiment_training_data_list, reviews_testing_data_list, sentiment_testing_data_list = get_training_and_evaluation_data()
@@ -177,67 +237,7 @@ def main():
     print("false negative", false_negative)
     print("true positive", true_positive)
 
-    average_run_results = []  # keeps average result for each min length run
-    for k in range(1, 11):
-        this_run_results = []
+    get_optimal_word_length_using_k_folds(reviews_training_data_list, sentiment_training_data_list)
 
-        kf = model_selection.KFold(n_splits=5, shuffle=False)
-        for train_index, test_index in kf.split(reviews_training_data_list, sentiment_training_data_list):
-            reviews_training_train_fold_data = reviews_training_data_list.iloc[train_index]
-            reviews_training_test_fold_data = reviews_training_data_list.iloc[test_index]
-            sentiment_training_train_fold_data = sentiment_training_data_list.iloc[train_index]
-            sentiment_training_test_fold_data = sentiment_training_data_list.iloc[test_index]
 
-            print("Starting to convert training data into individual words")
-            reviews_training_data_words_list = prepare_and_convert_training_data_to_word_list(reviews_training_train_fold_data, k, 100)
-            print("reviews_training_data_words_list", reviews_training_data_words_list)
-            print("Finished converting training data into individual words")
-
-            print("Starting to get frequency of words in positive/negative reviews")
-            frequency_of_words_in_positive_reviews = frequency_of_words_in_feature(reviews_training_data_words_list,
-                                                                                   reviews_training_train_fold_data[sentiment_training_train_fold_data == "positive"])
-            frequency_of_words_in_negative_reviews = frequency_of_words_in_feature(reviews_training_data_words_list,
-                                                                                   reviews_training_train_fold_data[sentiment_training_train_fold_data == "negative"])
-            print("Finished getting the frequency of words in positive/negative reviews")
-
-            total_positive_reviews = reviews_training_train_fold_data[sentiment_training_train_fold_data == "positive"].size
-            total_negative_reviews = reviews_training_train_fold_data[sentiment_training_train_fold_data == "negative"].size
-
-            print("Starting to get likelihood using laplace")
-            likelihood_laplace_dictionary, positive_priors, negative_priors = calculate_likelihood_using_laplace(frequency_of_words_in_positive_reviews,
-                                                                                                                 frequency_of_words_in_negative_reviews,
-                                                                                                                 total_positive_reviews,
-                                                                                                                 total_negative_reviews)
-            print("likelihood_laplace_dictionary", likelihood_laplace_dictionary)
-            print("positive_priors", positive_priors)
-            print("negative_priors", negative_priors)
-            print("Finished getting the likelihood using laplace")
-
-            predicted_sentiment_list = []
-            for review in reviews_training_test_fold_data:
-                predicted_sentiment = predict_sentiment_label(review, positive_priors, negative_priors, likelihood_laplace_dictionary)
-                predicted_sentiment_list.append(predicted_sentiment)
-
-            true_negative, false_positive, false_negative, true_positive = confusion_matrix(sentiment_training_test_fold_data, predicted_sentiment_list).ravel()
-
-            print("true negative", true_negative)
-            print("false positive", false_positive)
-            print("false negative", false_negative)
-            print("true positive", true_positive)
-
-            this_run_results.append(np.divide(np.sum([true_positive, true_negative]), len(sentiment_training_test_fold_data)))  # Append the percentage at the end of each fold
-
-        average_run_results.append(np.mean(this_run_results))  # get average of each run
-
-        # Print results
-        print("k: ", k)
-        # print("True positives: ", np.sum(true_positives))
-        # print("True negatives: ", np.sum(true_negatives))
-        # print("False positives: ", np.sum(false_positives))
-        # print("False positives: ", np.sum(false_negatives))
-
-    best_min_length = average_run_results.index(max(average_run_results))
-
-    print("average_run_results", average_run_results)
-    print("best average was with min length: ", best_min_length)
 main()
