@@ -112,23 +112,14 @@ def predict_sentiment_label(review_text, positive_prior, negative_prior, likelih
         .lower() \
         .split()
 
-    positive_likelihood_outcomes = []
-    negative_likelihood_outcomes = []
+    positive_score = 0
+    negative_score = 0
     for word in review_text_as_words:
         if word in likelihoods_of_word_dictionary:
-            positive_likelihood_outcomes.append(likelihoods_of_word_dictionary[word][0] * positive_prior / (
+            positive_score += np.math.log(likelihoods_of_word_dictionary[word][0] * positive_prior / (
                     likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1]))
-            negative_likelihood_outcomes.append(likelihoods_of_word_dictionary[word][1] * negative_prior / (
+            negative_score += np.math.log(likelihoods_of_word_dictionary[word][1] * negative_prior / (
                     likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1]))
-
-    # TODO: change to inline
-    positive_score = 0
-    for pos_score in positive_likelihood_outcomes:
-        positive_score += np.math.log(pos_score)
-
-    negative_score = 0
-    for neg_score in negative_likelihood_outcomes:
-        negative_score += np.math.log(neg_score)
 
     # TODO: ratios?
     if positive_score > negative_score:
