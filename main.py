@@ -156,7 +156,6 @@ def predict_sentiment_label(review_text, positive_prior, negative_prior, likelih
             positive_score += np.math.log(likelihoods_of_word_dictionary[word][0])
             negative_score += np.math.log(likelihoods_of_word_dictionary[word][1])
 
-    # TODO: ratios?
     if np.exp(positive_score - negative_score) > np.exp(np.log(negative_prior) - np.log(positive_prior)):
         return "positive"
     else:
