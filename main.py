@@ -313,7 +313,7 @@ def main():
     print("true positive", true_positive)
 
     accuracy = np.divide(np.sum([true_positive, true_negative]), len(sentiment_testing_data_list))
-    print("Accuracy from optimal word length", optimal_word_length, "obtained from the k folds, is", accuracy, "%")
+    print("Accuracy from optimal word length", optimal_word_length, "obtained from the k folds, is", accuracy * 100, "%")
 
     # Option to write your own reviews
     print("##############################")
