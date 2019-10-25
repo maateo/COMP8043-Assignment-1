@@ -119,7 +119,7 @@ def calculate_likelihood_using_laplace(frequency_of_positive_words, frequency_of
     likelihood_dictionary = {}  # Stores the frequencies of the words
     laplace_smoothing_alpha = 1
     for word in frequency_of_positive_words:
-        # Go through each words, and apply laplace smoothing to them, using the len() of words as we need the total number distinct words
+        # Go through each words, and apply laplace smoothing to them
         likelihood_positive_laplace = np.divide(frequency_of_positive_words.get(word) + laplace_smoothing_alpha, total_number_of_positive_reviews + 2 * laplace_smoothing_alpha)
         likelihood_negative_laplace = np.divide(frequency_of_negative_words.get(word) + laplace_smoothing_alpha, total_number_of_negative_reviews + 2 * laplace_smoothing_alpha)
 
@@ -153,13 +153,11 @@ def predict_sentiment_label(review_text, positive_prior, negative_prior, likelih
     negative_score = 0
     for word in review_text_as_words:
         if word in likelihoods_of_word_dictionary:
-            positive_score += np.math.log(likelihoods_of_word_dictionary[word][0] * positive_prior / (
-                    likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1]))
-            negative_score += np.math.log(likelihoods_of_word_dictionary[word][1] * negative_prior / (
-                    likelihoods_of_word_dictionary[word][0] + likelihoods_of_word_dictionary[word][1]))
+            positive_score += np.math.log(likelihoods_of_word_dictionary[word][0])
+            negative_score += np.math.log(likelihoods_of_word_dictionary[word][1])
 
     # TODO: ratios?
-    if positive_score > negative_score:
+    if np.exp(positive_score - negative_score) > np.exp(np.log(negative_prior) - np.log(positive_prior)):
         return "positive"
     else:
         return "negative"
